@@ -5,11 +5,13 @@ from setuptools import setup
 requirements = [
     "click >= 3.3",
     "python-swiftclient",
+    "python-keystoneclient",
+    "requests[security]"
 ]
 
 setup(
     name='SwiftSLOUploader',
-    version='0.1.0',
+    version='0.1.1',
     author='OLRC Collaborators',
     author_email='cloudtech@scholarsportal.info',
     packages=['swiftslouploader'],

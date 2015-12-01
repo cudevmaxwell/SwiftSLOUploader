@@ -5,3 +5,4 @@ dist/*
 manifest.json
 upload_cache
 .DS_Store
+*.pyc

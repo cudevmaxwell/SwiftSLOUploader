@@ -35,8 +35,7 @@ def slo_upload(filename, container, segment_size, auth_token, storage_url,
     Static Large Object"""
 
     # Check credentials
-    (auth_token, storage_url) = validate_credentials(storage_url, auth_token,
-                                                     container)
+    validate_credentials(storage_url, auth_token, container)
 
     # Check args meet 1000 segment limit.
     (file_size, total_segments, segment_size) = check_segment_size(
@@ -55,8 +54,6 @@ def slo_upload(filename, container, segment_size, auth_token, storage_url,
         "filename": filename,
         "segment_size": segment_size,
         "container": container,
-        "auth_token": auth_token,
-        "storage_url": storage_url,
         "lock": Lock(),
         "total_segments": total_segments,
         "segment_size": segment_size,
@@ -149,7 +146,16 @@ def create_container(args, container_name):
     '''Create the given container name. Return the name of the container
     created.'''
 
-    swiftclient.client.put_container(args["storage_url"], args["auth_token"],
+    # By this point, a call to validate_credentials() has already happened. 
+    # The auth information we get from the environment is correct. 
+    (storage_url, auth_token) = swiftclient.client.get_auth(
+                    os.environ.get("OS_AUTH_URL"),
+                    os.environ.get("OS_TENANT_NAME") + ":"
+                    + os.environ.get("OS_USERNAME"),
+                    os.environ.get("OS_PASSWORD"),
+                    auth_version=2)
+
+    swiftclient.client.put_container(storage_url, auth_token,
                                      container_name)
     return container_name
 
@@ -342,7 +348,8 @@ def validate_credentials(storage_url, auth_token, container):
                     os.environ.get("OS_PASSWORD"),
                     auth_version=2)
 
-            except swiftclient.client.ClientException:
+            except swiftclient.client.ClientException, e:
+                click.echo(e)
                 click.echo("Failed to authenticate. Please check that your"
                            " environment variables $OS_USERNAME, $OS_PASSWORD,"
                            " $OS_AUTH_URL and $OS_TENANT_NAME are correct."
@@ -372,9 +379,6 @@ def validate_credentials(storage_url, auth_token, container):
             create_container({"storage_url": storage_url, 
                               "auth_token": auth_token},
                              container)
-
-    return (auth_token, storage_url)
-
 
 def update_progressbar(args, queue):
     '''Create a click progress bar and update it as new information arrives
@@ -442,8 +446,17 @@ def create_segment(args, segment_name):
 def upload_segment(source, target, args):
     '''Upload source to swift at the given taret.'''
 
+    # By this point, a call to validate_credentials() has already happened. 
+    # The auth information we get from the environment is correct. 
+    (storage_url, auth_token) = swiftclient.client.get_auth(
+                    os.environ.get("OS_AUTH_URL"),
+                    os.environ.get("OS_TENANT_NAME") + ":"
+                    + os.environ.get("OS_USERNAME"),
+                    os.environ.get("OS_PASSWORD"),
+                    auth_version=2)
+
     opened_source_file = open(source, 'r')
-    swiftclient.client.put_object(args["storage_url"], args["auth_token"],
+    swiftclient.client.put_object(storage_url, auth_token,
                                   args["segment_container"], target,
                                   opened_source_file)
 
@@ -510,8 +523,18 @@ def upload_manifest_file(manifest_name, args):
         filename = args["filename"].split("/")[-1]
 
         try:
+
+            # By this point, a call to validate_credentials() has already happened. 
+            # The auth information we get from the environment is correct. 
+            (storage_url, auth_token) = swiftclient.client.get_auth(
+                    os.environ.get("OS_AUTH_URL"),
+                    os.environ.get("OS_TENANT_NAME") + ":"
+                    + os.environ.get("OS_USERNAME"),
+                    os.environ.get("OS_PASSWORD"),
+                    auth_version=2)
+
             swiftclient.client.put_object(
-                args["storage_url"], args["auth_token"], args["container"],
+                storage_url, auth_token, args["container"],
                 filename, outfile,
                 query_string="multipart-manifest=put")
             click.echo(
